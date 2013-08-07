@@ -463,7 +463,7 @@ static int pixcir_probe(struct usb_interface *intf, const struct usb_device_id *
       	input_set_abs_params(input_dev1, ABS_MT_TOUCH_MAJOR, 0, 255, 0, 0);
       	input_set_abs_params(input_dev1, ABS_MT_WIDTH_MAJOR, 0, 25, 0, 0);
 
-      	psmt->data = usb_buffer_alloc(dev, insize, GFP_KERNEL,
+      	psmt->data = usb_alloc_coherent(dev, insize, GFP_KERNEL,
                    &psmt->data_dma);
 
       	if(!psmt->data) {
@@ -534,7 +534,7 @@ static int pixcir_probe(struct usb_interface *intf, const struct usb_device_id *
 fail:
       	usb_free_urb(psmt->urb);
       	psmt->urb = NULL;
-      	usb_buffer_free(dev, insize, psmt->data, psmt->data_dma);
+      	usb_free_coherent(dev, insize, psmt->data, psmt->data_dma);
 fail1:
       	input_free_device(input_dev1);
       	kfree(psmt);
@@ -552,7 +552,7 @@ static void pixcir_disconnect(struct usb_interface *intf)
              input_unregister_device(psmt->input_dev);
              usb_kill_urb(psmt->urb);
              usb_free_urb(psmt->urb);
-             usb_buffer_free(interface_to_usbdev(intf), TOUCH_PACKAGE_LEN,
+             usb_free_coherent(interface_to_usbdev(intf), TOUCH_PACKAGE_LEN,
                          psmt->data, psmt->data_dma);
              kfree(psmt);
       	}
