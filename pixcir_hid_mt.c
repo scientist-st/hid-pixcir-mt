@@ -36,7 +36,7 @@
 #define DRIVER_AUTHOR "bee<http://www.pixcir.com.cn>"
 #define DRIVER_DESC "Pixcir HID Touchscreen Driver"
 #define DRIVER_LICENSE "GPL"
-      
+
 #define TOUCH_PACKAGE_LEN	14
 
 #define MAX_TRANSFER (PAGE_SIZE - 512)
@@ -55,20 +55,20 @@ MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE(DRIVER_LICENSE);
 
 struct pixcir_mt_usb {
-      	unsigned char *data;
-      	struct input_dev *input_dev;
-      	struct psmt_device_info *type;
-      	struct usb_device *udev;
-      	dma_addr_t data_dma;
-     	struct urb *urb;
-      	char name[128];
-      	char phys0[64];
-      	char phys1[64];
-      	int x1, y1, x2, y2;     
-      	int touch1, touch2, press;
+	unsigned char *data;
+	struct input_dev *input_dev;
+	struct psmt_device_info *type;
+	struct usb_device *udev;
+	dma_addr_t data_dma;
+	struct urb *urb;
+	char name[128];
+	char phys0[64];
+	char phys1[64];
+	int x1, y1, x2, y2;
+	int touch1, touch2, press;
 	struct usb_interface *interface;
-      	struct kref kref;
-      	int open_count;
+	struct kref kref;
+	int open_count;
 	struct mutex		io_mutex;		/* synchronize I/O with disconnect */
 };
 #define to_pixcir_dev(d) container_of(d,struct pixcir_mt_usb,kref)
@@ -76,20 +76,20 @@ struct pixcir_mt_usb {
 static struct usb_driver pixcir_driver;
 
 struct psmt_device_info {
-      int min_xc, max_xc;
-      int min_yc, max_yc;
-      int min_press, max_press;
-      int rept_size;
-      void (*process_pkt) (struct pixcir_mt_usb *psmt, unsigned char *pkt, int len);
-      /*
+	int min_xc, max_xc;
+	int min_yc, max_yc;
+	int min_press, max_press;
+	int rept_size;
+	void (*process_pkt) (struct pixcir_mt_usb *psmt, unsigned char *pkt, int len);
+	/*
        * used to get the packet len. possible return values:
        * > 0: packet len
        * = 0: skip one byte
        * < 0: -return value more bytes needed
        */
-      int  (*get_pkt_len) (unsigned char *pkt, int len);
-      int  (*read_data)   (struct pixcir_mt_usb *psmt, unsigned char *pkt);
-      int  (*init)        (struct pixcir_mt_usb *psmt);
+	int  (*get_pkt_len) (unsigned char *pkt, int len);
+	int  (*read_data)   (struct pixcir_mt_usb *psmt, unsigned char *pkt);
+	int  (*init)        (struct pixcir_mt_usb *psmt);
 };
 
 
@@ -99,113 +99,113 @@ struct psmt_device_info {
 
 
 static int pixcir_read_data(struct pixcir_mt_usb *dev, unsigned char *pkt){
-      
-      dev->x1 = ((pkt[4] & 0xFF) << 8) | (pkt[3] & 0xFF);
-      dev->y1 = ((pkt[6] & 0xFF) << 8) | (pkt[5] & 0xFF);
 
-      dev->x2 = ((pkt[10] & 0xFF) << 8) | (pkt[9] & 0xFF);
-      dev->y2 = ((pkt[12] & 0xFF) << 8) | (pkt[11] & 0xFF);
+	dev->x1 = ((pkt[4] & 0xFF) << 8) | (pkt[3] & 0xFF);
+	dev->y1 = ((pkt[6] & 0xFF) << 8) | (pkt[5] & 0xFF);
 
-      //printk("x:%d\n",dev->x1);
-      //printk("y:%d\n",dev->y1);
-      //printk("x:%d\n",dev->x2);
-      //printk("y:%d\n",dev->y2);
+	dev->x2 = ((pkt[10] & 0xFF) << 8) | (pkt[9] & 0xFF);
+	dev->y2 = ((pkt[12] & 0xFF) << 8) | (pkt[11] & 0xFF);
 
-      finger1 = pkt[1];
-      finger2 = pkt[7];
+	//printk("x:%d\n",dev->x1);
+	//printk("y:%d\n",dev->y1);
+	//printk("x:%d\n",dev->x2);
+	//printk("y:%d\n",dev->y2);
 
-      if(finger1 == NO_TOUCH || finger1 == TOUCH_RELEASE) dev->touch1 = 0;
-      if(finger1 == TOUCH_PRESS)                           dev->touch1 = 1;
+	finger1 = pkt[1];
+	finger2 = pkt[7];
 
-      if(finger2 == NO_TOUCH || finger2 == TOUCH_RELEASE) dev->touch2 = 0;
-      if(finger2 == TOUCH_PRESS)                           dev->touch2 = 1;
+	if(finger1 == NO_TOUCH || finger1 == TOUCH_RELEASE) dev->touch1 = 0;
+	if(finger1 == TOUCH_PRESS)                           dev->touch1 = 1;
 
-      return 1;
+	if(finger2 == NO_TOUCH || finger2 == TOUCH_RELEASE) dev->touch2 = 0;
+	if(finger2 == TOUCH_PRESS)                           dev->touch2 = 1;
+
+	return 1;
 }
 
 static struct psmt_device_info type = {
-             .min_xc  = TOUCHSCREEN_MINX,
-             .max_xc  = TOUCHSCREEN_MAXX,
-             .min_yc  = TOUCHSCREEN_MINY,
-             .max_yc  = TOUCHSCREEN_MAXY,
-             .rept_size = 8,
-             .read_data = pixcir_read_data,
+	.min_xc  = TOUCHSCREEN_MINX,
+	.max_xc  = TOUCHSCREEN_MAXX,
+	.min_yc  = TOUCHSCREEN_MINY,
+	.max_yc  = TOUCHSCREEN_MAXY,
+	.rept_size = 8,
+	.read_data = pixcir_read_data,
 };
 
 
 static void usbtouch_process_pkt(struct pixcir_mt_usb *psmt,
-                                 unsigned char *pkt, int len)
+				 unsigned char *pkt, int len)
 {
-   
-      int z=50;
-      int w=15;
 
-      struct psmt_device_info *type = psmt->type;
-	  
-      if (!type->read_data(psmt, pkt))
-                   return;
-     
-      if((psmt->x1 > TOUCHSCREEN_MAXX) || (psmt->y1 > TOUCHSCREEN_MAXY)) return;
-      if((psmt->x2 > TOUCHSCREEN_MAXX) || (psmt->y2 > TOUCHSCREEN_MAXY)) return;
+	int z=50;
+	int w=15;
 
-      input_report_key(psmt->input_dev, BTN_TOUCH, psmt->touch1);    
+	struct psmt_device_info *type = psmt->type;
 
-      if(psmt->touch1){
-      		input_report_abs(psmt->input_dev, ABS_X, psmt->x1);
-      		input_report_abs(psmt->input_dev, ABS_Y, psmt->y1);
-      }
+	if (!type->read_data(psmt, pkt))
+		return;
 
-     
-      if(!(psmt->touch2+psmt->touch1)){
+	if((psmt->x1 > TOUCHSCREEN_MAXX) || (psmt->y1 > TOUCHSCREEN_MAXY)) return;
+	if((psmt->x2 > TOUCHSCREEN_MAXX) || (psmt->y2 > TOUCHSCREEN_MAXY)) return;
+
+	input_report_key(psmt->input_dev, BTN_TOUCH, psmt->touch1);
+
+	if(psmt->touch1){
+		input_report_abs(psmt->input_dev, ABS_X, psmt->x1);
+		input_report_abs(psmt->input_dev, ABS_Y, psmt->y1);
+	}
+
+
+	if(!(psmt->touch2+psmt->touch1)){
 		z=0;
 		w=0;
-      }
-      input_report_abs(psmt->input_dev, ABS_MT_TOUCH_MAJOR, z);
-      input_report_abs(psmt->input_dev, ABS_MT_WIDTH_MAJOR, w);
-      input_report_abs(psmt->input_dev, ABS_MT_POSITION_X, psmt->x1);
-      input_report_abs(psmt->input_dev, ABS_MT_POSITION_Y, psmt->y1);
-      input_mt_sync(psmt->input_dev);
-      if (psmt->touch2) {
-       	input_report_abs(psmt->input_dev, ABS_MT_TOUCH_MAJOR, z);
-       	input_report_abs(psmt->input_dev, ABS_MT_WIDTH_MAJOR, w);
-	input_report_abs(psmt->input_dev, ABS_MT_POSITION_X, psmt->x2);
-	input_report_abs(psmt->input_dev, ABS_MT_POSITION_Y, psmt->y2);
+	}
+	input_report_abs(psmt->input_dev, ABS_MT_TOUCH_MAJOR, z);
+	input_report_abs(psmt->input_dev, ABS_MT_WIDTH_MAJOR, w);
+	input_report_abs(psmt->input_dev, ABS_MT_POSITION_X, psmt->x1);
+	input_report_abs(psmt->input_dev, ABS_MT_POSITION_Y, psmt->y1);
 	input_mt_sync(psmt->input_dev);
-      }
-      input_sync(psmt->input_dev);
+	if (psmt->touch2) {
+		input_report_abs(psmt->input_dev, ABS_MT_TOUCH_MAJOR, z);
+		input_report_abs(psmt->input_dev, ABS_MT_WIDTH_MAJOR, w);
+		input_report_abs(psmt->input_dev, ABS_MT_POSITION_X, psmt->x2);
+		input_report_abs(psmt->input_dev, ABS_MT_POSITION_Y, psmt->y2);
+		input_mt_sync(psmt->input_dev);
+	}
+	input_sync(psmt->input_dev);
 }
 
 
 static void pixcir_mt_irq(struct urb *urb)
 {
-      struct pixcir_mt_usb *psmt = urb->context;
-      int retval;
+	struct pixcir_mt_usb *psmt = urb->context;
+	int retval;
 #ifdef DEBUG 
-      unsigned char* data = psmt->data;
+	unsigned char* data = psmt->data;
 #endif
-      switch (urb->status) {
-      case 0:
-             // success
-             break;
-      case -ETIME:
-             // this urb is timing out
-             dbg("%s - urb timed out - was the device unplugged?",
-                __FUNCTION__);
-             return;
-      case -ECONNRESET:
-      case -ENOENT:
-      case -ESHUTDOWN:
-             return;
-      default:
-             goto resubmit;
-      }
+	switch (urb->status) {
+		case 0:
+			// success
+			break;
+		case -ETIME:
+			// this urb is timing out
+			dbg("%s - urb timed out - was the device unplugged?",
+			    __FUNCTION__);
+			return;
+		case -ECONNRESET:
+		case -ENOENT:
+		case -ESHUTDOWN:
+			return;
+		default:
+			goto resubmit;
+	}
 
-      psmt->type->process_pkt(psmt, psmt->data, urb->actual_length);
-      resubmit:
-      retval = usb_submit_urb(urb, GFP_ATOMIC);
-      if (retval)
-             err("%s - usb_submit_urb failed with result: %d",
-                __FUNCTION__, retval);
+	psmt->type->process_pkt(psmt, psmt->data, urb->actual_length);
+resubmit:
+	retval = usb_submit_urb(urb, GFP_ATOMIC);
+	if (retval)
+		err("%s - usb_submit_urb failed with result: %d",
+		    __FUNCTION__, retval);
 }
 
 
@@ -229,18 +229,18 @@ static int pixcir_open (struct inode *inode, struct file *file)
 	
 	buf = NULL;
 	getbuf = NULL;
-	retval=0;	
+	retval=0;
 
 	subminor = iminor(inode);
 	
-	//printk("enter pixcir_open function\n");	
+	//printk("enter pixcir_open function\n");
 
 	interface = usb_find_interface(&pixcir_driver, subminor);
 	if (!interface) {
 		err("%s - error, can't find device for minor %d",
-		     __func__, subminor);
+		    __func__, subminor);
 		retval = -ENODEV;
-		return retval;	
+		return retval;
 	}
 	
 	dev = usb_get_intfdata(interface);
@@ -257,12 +257,12 @@ static int pixcir_open (struct inode *inode, struct file *file)
 
 	if (!dev->open_count++) {
 		retval = usb_autopm_get_interface(interface);
-			if (retval) {
-				dev->open_count--;
-				mutex_unlock(&dev->io_mutex);
-				kref_put(&dev->kref, pixcir_delete);
-				return retval;
-			}
+		if (retval) {
+			dev->open_count--;
+			mutex_unlock(&dev->io_mutex);
+			kref_put(&dev->kref, pixcir_delete);
+			return retval;
+		}
 	}
 	/* save our object in the file's private structure */
 	file->private_data = dev;
@@ -288,12 +288,12 @@ static ssize_t pixcir_read(struct file *file, char __user *buf, size_t count,lof
 	retval=0;
 
 	retval = usb_control_msg(dev->udev,
-                       usb_rcvctrlpipe(dev->udev, 0),
-                       USB_REQ_GET_DESCRIPTOR,
-                       USB_DIR_IN,
-                       (0x01 << 8),
-                       dev->interface->cur_altsetting->desc.bInterfaceNumber,
-		       readbuf,count, HZ);
+				 usb_rcvctrlpipe(dev->udev, 0),
+				 USB_REQ_GET_DESCRIPTOR,
+				 USB_DIR_IN,
+				 (0x01 << 8),
+				 dev->interface->cur_altsetting->desc.bInterfaceNumber,
+				 readbuf,count, HZ);
 	//printk("retval = %d\n",retval);
 	if (copy_to_user(buf,readbuf,count)){
 		printk("read descripter failed\n");
@@ -330,12 +330,12 @@ static ssize_t pixcir_write(struct file *file, const char *buf,size_t count, lof
 	}
 	
 	retval = usb_control_msg(dev->udev,
-                       usb_sndctrlpipe(dev->udev,0),
-                       USB_REQ_SET_REPORT,
-                       USB_TYPE_CLASS|USB_RECIP_INTERFACE,
-                       (2 << 8)+7,
-                       dev->interface->cur_altsetting->desc.bInterfaceNumber, 
-		       writebuf,count, HZ);
+				 usb_sndctrlpipe(dev->udev,0),
+				 USB_REQ_SET_REPORT,
+				 USB_TYPE_CLASS|USB_RECIP_INTERFACE,
+				 (2 << 8)+7,
+				 dev->interface->cur_altsetting->desc.bInterfaceNumber,
+				 writebuf,count, HZ);
 	//printk("retval = %d\n",retval);
 	if(retval<0){
 		printk("send calibration command failed!\n");
@@ -397,38 +397,38 @@ static int pixcir_probe(struct usb_interface *intf, const struct usb_device_id *
 
 	int n = 0, insize = TOUCH_PACKAGE_LEN;
 	int err;
- 	const char *path;
- 	int  len;
- 	char input_buf[10];
+	const char *path;
+	int  len;
+	char input_buf[10];
 	
- 	struct pixcir_mt_usb *psmt = kzalloc(sizeof(struct pixcir_mt_usb), GFP_KERNEL);
+	struct pixcir_mt_usb *psmt = kzalloc(sizeof(struct pixcir_mt_usb), GFP_KERNEL);
 
 	kref_init(&psmt->kref);
 	mutex_init(&psmt->io_mutex);
 	
-  	printk("%s\n", __FUNCTION__);
+	printk("%s\n", __FUNCTION__);
 	psmt->type = &type;
 	psmt->udev = dev;
 
 	if (dev->manufacturer)
-             strlcpy(psmt->name, dev->manufacturer, sizeof(psmt->name));
+		strlcpy(psmt->name, dev->manufacturer, sizeof(psmt->name));
 
 	if (dev->product) {
-             if (dev->manufacturer)
-                   strlcat(psmt->name, " ", sizeof(psmt->name));
-             strlcat(psmt->name, dev->product, sizeof(psmt->name));
+		if (dev->manufacturer)
+			strlcat(psmt->name, " ", sizeof(psmt->name));
+		strlcat(psmt->name, dev->product, sizeof(psmt->name));
 	}
 
 	if (!strlen(psmt->name))
-             snprintf(psmt->name, sizeof(psmt->name),
-                   "USB Touchscreen %04x:%04x",
-                   le16_to_cpu(dev->descriptor.idVendor),
-                   le16_to_cpu(dev->descriptor.idProduct));
+		snprintf(psmt->name, sizeof(psmt->name),
+			 "USB Touchscreen %04x:%04x",
+			 le16_to_cpu(dev->descriptor.idVendor),
+			 le16_to_cpu(dev->descriptor.idProduct));
 
 	if (!psmt->type->process_pkt) {
-             printk("process_pkt is null\n");
-             psmt->type->process_pkt = usbtouch_process_pkt;
- 	}
+		printk("process_pkt is null\n");
+		psmt->type->process_pkt = usbtouch_process_pkt;
+	}
 
 	usb_set_intfdata(intf, psmt);
 	
@@ -437,7 +437,7 @@ static int pixcir_probe(struct usb_interface *intf, const struct usb_device_id *
 		printk("Not able to get minor for this device.");
 	}
 
-	dev_info(&intf->dev,"now attach to USB-%d",intf->minor);	
+	dev_info(&intf->dev,"now attach to USB-%d",intf->minor);
 
 	input_dev1 = input_allocate_device();
 	input_dev1->name = "pixcir_hid_mt_v2.0";
@@ -445,8 +445,8 @@ static int pixcir_probe(struct usb_interface *intf, const struct usb_device_id *
 	psmt->input_dev = input_dev1;
 
 	if(!psmt|| !input_dev1) {
-             printk("Memory is not enough\n");
-             goto fail1;
+		printk("Memory is not enough\n");
+		goto fail1;
 	}
 
 	input_dev1->dev.parent = &intf->dev;
@@ -460,59 +460,59 @@ static int pixcir_probe(struct usb_interface *intf, const struct usb_device_id *
 	input_set_abs_params(input_dev1, ABS_Y, psmt->type->min_yc, psmt->type->max_yc, 0, 0);
 	input_set_abs_params(input_dev1, ABS_MT_POSITION_X, psmt->type->min_xc, psmt->type->max_xc, 0, 0);
 	input_set_abs_params(input_dev1, ABS_MT_POSITION_Y, psmt->type->min_yc, psmt->type->max_yc, 0, 0);
-      	input_set_abs_params(input_dev1, ABS_MT_TOUCH_MAJOR, 0, 255, 0, 0);
-      	input_set_abs_params(input_dev1, ABS_MT_WIDTH_MAJOR, 0, 25, 0, 0);
+	input_set_abs_params(input_dev1, ABS_MT_TOUCH_MAJOR, 0, 255, 0, 0);
+	input_set_abs_params(input_dev1, ABS_MT_WIDTH_MAJOR, 0, 25, 0, 0);
 
-      	psmt->data = usb_alloc_coherent(dev, insize, GFP_KERNEL,
-                   &psmt->data_dma);
+	psmt->data = usb_alloc_coherent(dev, insize, GFP_KERNEL,
+					&psmt->data_dma);
 
-      	if(!psmt->data) {
-             printk("psmt->data allocating fail");
-             goto fail;
-      	}
+	if(!psmt->data) {
+		printk("psmt->data allocating fail");
+		goto fail;
+	}
 
-      	for (n = 0; n < interface->desc.bNumEndpoints; n++) {
-             	struct usb_endpoint_descriptor *endpoint;
-             	int pipe;
-             	int interval;
+	for (n = 0; n < interface->desc.bNumEndpoints; n++) {
+		struct usb_endpoint_descriptor *endpoint;
+		int pipe;
+		int interval;
 
-             	endpoint = &interface->endpoint[n].desc;
+		endpoint = &interface->endpoint[n].desc;
 
 
 		/*find a int endpoint*/
-             	if (!usb_endpoint_xfer_int(endpoint))
-                   continue;
+		if (!usb_endpoint_xfer_int(endpoint))
+			continue;
 
-             	interval = endpoint->bInterval;
-             	if (usb_endpoint_dir_in(endpoint)) {
-                   if (psmt->urb)
-                         continue;
-                   if (!(psmt->urb = usb_alloc_urb(0, GFP_KERNEL)))
-                         goto fail;
+		interval = endpoint->bInterval;
+		if (usb_endpoint_dir_in(endpoint)) {
+			if (psmt->urb)
+				continue;
+			if (!(psmt->urb = usb_alloc_urb(0, GFP_KERNEL)))
+				goto fail;
 
-                   pipe = usb_rcvintpipe(dev, endpoint->bEndpointAddress);
-                   usb_fill_int_urb(psmt->urb, dev, pipe, psmt->data,
-                               insize, pixcir_mt_irq, psmt, interval);
-                   psmt->urb->transfer_dma = psmt->data_dma;
-                   psmt->urb->transfer_flags = URB_NO_TRANSFER_DMA_MAP;
-             }
-      	}
+			pipe = usb_rcvintpipe(dev, endpoint->bEndpointAddress);
+			usb_fill_int_urb(psmt->urb, dev, pipe, psmt->data,
+					 insize, pixcir_mt_irq, psmt, interval);
+			psmt->urb->transfer_dma = psmt->data_dma;
+			psmt->urb->transfer_flags = URB_NO_TRANSFER_DMA_MAP;
+		}
+	}
 
 
-      	if (usb_submit_urb(psmt->urb, GFP_ATOMIC)) {
-             printk("usb submit urb error\n");
-             return -EIO;
-      	}
+	if (usb_submit_urb(psmt->urb, GFP_ATOMIC)) {
+		printk("usb submit urb error\n");
+		return -EIO;
+	}
 
-      	err = input_register_device(psmt->input_dev);
-      	if(err) {
-		  printk("pixcir_probe: Could not register input device(touchscreen)!\n");
-	        return -EIO;
-      	}
+	err = input_register_device(psmt->input_dev);
+	if(err) {
+		printk("pixcir_probe: Could not register input device(touchscreen)!\n");
+		return -EIO;
+	}
 
-      	path = kobject_get_path(&psmt->input_dev->dev.kobj, GFP_KERNEL);
-      	len=strlen(path);
-      	if(len>10){
+	path = kobject_get_path(&psmt->input_dev->dev.kobj, GFP_KERNEL);
+	len=strlen(path);
+	if(len>10){
 		if(path[len-2]=='t'){
 			memset(input_buf,'\0',9);
 			strncpy(input_buf,&path[len-6],6);
@@ -520,69 +520,69 @@ static int pixcir_probe(struct usb_interface *intf, const struct usb_device_id *
 			memset(input_buf,'\0',9);
 			strncpy(input_buf,&path[len-7],7);
 		}else{
-			 goto fail;
+			goto fail;
 		}
-      	}else{
-     	    goto fail;
-      	}
+	}else{
+		goto fail;
+	}
 
-      	usb_make_path(dev, psmt->phys0, sizeof(psmt->phys0));
-      	strlcat(psmt->phys0,input_buf, sizeof(psmt->phys0));
+	usb_make_path(dev, psmt->phys0, sizeof(psmt->phys0));
+	strlcat(psmt->phys0,input_buf, sizeof(psmt->phys0));
 
-      	return 0;
+	return 0;
 
 fail:
-      	usb_free_urb(psmt->urb);
-      	psmt->urb = NULL;
-      	usb_free_coherent(dev, insize, psmt->data, psmt->data_dma);
+	usb_free_urb(psmt->urb);
+	psmt->urb = NULL;
+	usb_free_coherent(dev, insize, psmt->data, psmt->data_dma);
 fail1:
-      	input_free_device(input_dev1);
-      	kfree(psmt);
-      	return 1;
+	input_free_device(input_dev1);
+	kfree(psmt);
+	return 1;
 }
 
 
 static void pixcir_disconnect(struct usb_interface *intf)
 {
-      	struct pixcir_mt_usb *psmt = usb_get_intfdata(intf);
-      	usb_set_intfdata(intf, NULL);
+	struct pixcir_mt_usb *psmt = usb_get_intfdata(intf);
+	usb_set_intfdata(intf, NULL);
 
 	usb_deregister_dev(intf,&pixcir_class_driver);
-      	if (psmt) {
-             input_unregister_device(psmt->input_dev);
-             usb_kill_urb(psmt->urb);
-             usb_free_urb(psmt->urb);
-             usb_free_coherent(interface_to_usbdev(intf), TOUCH_PACKAGE_LEN,
-                         psmt->data, psmt->data_dma);
-             kfree(psmt);
-      	}
+	if (psmt) {
+		input_unregister_device(psmt->input_dev);
+		usb_kill_urb(psmt->urb);
+		usb_free_urb(psmt->urb);
+		usb_free_coherent(interface_to_usbdev(intf), TOUCH_PACKAGE_LEN,
+				  psmt->data, psmt->data_dma);
+		kfree(psmt);
+	}
 }
 
 
 static const struct usb_device_id pixcir_devices[] = {
-      	{ USB_DEVICE(USB_VENDOR_ID_PIXCIR, USB_DEVICE_ID_PIXCIR) },
-      	{ }
+	{ USB_DEVICE(USB_VENDOR_ID_PIXCIR, USB_DEVICE_ID_PIXCIR) },
+	{ }
 };
 
 MODULE_DEVICE_TABLE(usb, pixcir_devices);
 
 static struct usb_driver pixcir_driver = {
-      	.name = "pixcir-hid-touchscreen-v2.0",
-      	.probe = pixcir_probe,
-      	.disconnect = pixcir_disconnect,
-      	.id_table = pixcir_devices,
+	.name = "pixcir-hid-touchscreen-v2.0",
+	.probe = pixcir_probe,
+	.disconnect = pixcir_disconnect,
+	.id_table = pixcir_devices,
 };
 
 static int pixcir_init(void)
 {
-      	printk("pixcir_init\n");
-      	return usb_register(&pixcir_driver);
+	printk("pixcir_init\n");
+	return usb_register(&pixcir_driver);
 }
 
 static void pixcir_exit(void)
 {
-      	printk("pixcir_exit\n");
-      	usb_deregister(&pixcir_driver);
+	printk("pixcir_exit\n");
+	usb_deregister(&pixcir_driver);
 }
 
 module_init(pixcir_init);
