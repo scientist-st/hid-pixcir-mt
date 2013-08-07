@@ -204,8 +204,8 @@ static void pixcir_mt_irq(struct urb *urb)
 resubmit:
 	retval = usb_submit_urb(urb, GFP_ATOMIC);
 	if (retval)
-		err("%s - usb_submit_urb failed with result: %d",
-		    __FUNCTION__, retval);
+		pr_err("%s - usb_submit_urb failed with result: %d",
+			__FUNCTION__, retval);
 }
 
 
@@ -237,8 +237,8 @@ static int pixcir_open (struct inode *inode, struct file *file)
 
 	interface = usb_find_interface(&pixcir_driver, subminor);
 	if (!interface) {
-		err("%s - error, can't find device for minor %d",
-		    __func__, subminor);
+		pr_err("%s - error, can't find device for minor %d",
+			__func__, subminor);
 		retval = -ENODEV;
 		return retval;
 	}
@@ -478,6 +478,7 @@ static int pixcir_probe(struct usb_interface *intf, const struct usb_device_id *
 
 		endpoint = &interface->endpoint[n].desc;
 
+		dev_info(&intf->dev,"iterating over endpoint-%d",n);
 
 		/*find a int endpoint*/
 		if (!usb_endpoint_xfer_int(endpoint))
